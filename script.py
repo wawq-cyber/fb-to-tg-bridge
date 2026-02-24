@@ -69,14 +69,19 @@ def main():
             headless=True
         )
         
-        # 3. Получение данных
-        posts_data = scraper.get_posts()
-        
-        if not posts_data:
-            print("ℹ️ Новых постов не обнаружено или доступ ограничен.")
-            return
-
-        new_posts_count = 0
+        # 3. Получение данных (пробуем разные методы для совместимости версий)
+        print("🔍 Пробуем получить данные со страницы...")
+        if hasattr(scraper, 'get_posts'):
+            posts_data = scraper.get_posts()
+        elif hasattr(scraper, 'get_dict'):
+            posts_data = scraper.get_dict()
+        else:
+            # Если методы выше не найдены, пробуем вызвать как итератор
+            try:
+                posts_data = next(scraper)
+            except:
+                print("❌ Ошибка: Не удалось найти метод получения постов в этой версии библиотеки.")
+                return
         
         # 4. Обработка постов
         for post_id, data in posts_data.items():
