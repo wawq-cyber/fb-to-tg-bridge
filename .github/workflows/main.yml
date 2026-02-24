@@ -1,7 +1,7 @@
 name: FB to TG Autopost
 on:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '*/30 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -20,9 +20,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests facebook-page-scraper
-          # Мы убрали попытку установки firefox-geckodriver через apt-get
-
+          pip install requests facebook-page-scraper webdriver-manager
+         
       - name: Run Scraper
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
