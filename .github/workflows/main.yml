@@ -27,6 +27,7 @@ jobs:
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          FB_COOKIES: ${{ secrets.FB_COOKIES }}  # ВОТ ЭТОЙ СТРОКИ НЕ ХВАТАЛО!
         run: python script.py
 
       - name: Save state
