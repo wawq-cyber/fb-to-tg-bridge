@@ -6,7 +6,7 @@ from facebook_page_scraper import Facebook_scraper
 # Настройки из секретов GitHub
 TOKEN = os.getenv('TELEGRAM_TOKEN')
 CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
-GROUP_ID = "ID_ВАШЕЙ_ГРУППЫ"  # Вставьте сюда ID или название из URL группы
+GROUP_ID = "worknpoland"
 
 def send_to_telegram(text, image_url=None):
     if image_url:
@@ -30,8 +30,7 @@ def main():
         posted_ids = []
 
     # 2. Инициализируем скрейпер
-    # proxy можно не указывать, GitHub имеет хорошие IP
-    scraper = Facebook_scraper(GROUP_ID, 10, "firefox", timeout=600)
+       scraper = Facebook_scraper(GROUP_ID, 10, "firefox", timeout=600)
     
     # 3. Получаем посты (в формате JSON)
     posts_data = scraper.get_posts()
