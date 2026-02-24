@@ -20,7 +20,13 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests facebook-page-scraper webdriver-manager
+          python -m pip install --upgrade pip
+          pip install requests webdriver-manager selenium==4.21.0
+          # Удаляем blinker, если он есть, и ставим конкретную старую версию
+          pip uninstall -y blinker
+          pip install "blinker==1.7.0"
+          # Устанавливаем скрейпер последним
+          pip install facebook-page-scraper
                    
       - name: Run Scraper
         env:
