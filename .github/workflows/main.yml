@@ -21,7 +21,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install requests facebook-page-scraper webdriver-manager
-         
+                   
       - name: Run Scraper
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
