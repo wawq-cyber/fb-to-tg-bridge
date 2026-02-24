@@ -22,8 +22,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          # Устанавливаем без использования кэша, чтобы исключить старые хвосты
-          pip install --no-cache-dir requests facebook-scraper
+          pip install --no-cache-dir requests facebook-scraper lxml_html_clean
       - name: Run Scraper
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
