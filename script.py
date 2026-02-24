@@ -59,11 +59,12 @@ def main():
         print(f"🚀 Начинаем сбор постов для: {GROUP_ID}...")
 
         # 2. Инициализация скрейпера
-        # Заменили 'group' на 'page', так как библиотека ожидает именно этот аргумент
+        # Передаем GROUP_ID первым аргументом без указания имени (page или group)
+        # Это самый совместимый способ для разных версий библиотеки
         scraper = Facebook_scraper(
-            page=GROUP_ID, 
-            posts_count=10, 
-            browser="firefox", 
+            GROUP_ID, 
+            10, 
+            "firefox", 
             timeout=600, 
             headless=True
         )
