@@ -59,9 +59,9 @@ def main():
         print(f"🚀 Начинаем сбор постов для: {GROUP_ID}...")
 
         # 2. Инициализация скрейпера
-        # headless=True ОБЯЗАТЕЛЬНО для GitHub Actions
+        # Заменили 'group' на 'page', так как библиотека ожидает именно этот аргумент
         scraper = Facebook_scraper(
-            group=GROUP_ID, 
+            page=GROUP_ID, 
             posts_count=10, 
             browser="firefox", 
             timeout=600, 
