@@ -22,12 +22,12 @@ def main():
     try:
         # Увеличиваем количество страниц и добавляем User-Agent
         # Это заставляет Facebook думать, что зашел реальный человек
+        # Пробуем зайти через мобильный интерфейс (он легче отдается ботам)
         posts = get_posts(
-            GROUP_ID, 
-            pages=3, 
-            extra_info=True,
-            options={"substream": "posts"},
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            group=GROUP_ID, # используем параметр group вместо первого аргумента
+            pages=2,
+            options={"substream": "posts", "allow_extra_requests": True},
+            user_agent="Mozilla/5.0 (Linux; Android 10; SM-G960U) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.5993.111 Mobile Safari/537.36"
         )
         
         if os.path.exists('posted_ids.json'):
