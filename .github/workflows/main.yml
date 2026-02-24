@@ -22,13 +22,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          # Исправляем конфликт SSLv2_METHOD
-          pip install "pyOpenSSL==24.0.0" 
-          pip install requests webdriver-manager selenium==4.21.0
-          pip uninstall -y blinker
-          pip install "blinker==1.7.0"
-          pip install facebook-page-scraper==4.0.0
-
+          # Устанавливаем без использования кэша, чтобы исключить старые хвосты
+          pip install --no-cache-dir requests facebook-scraper
       - name: Run Scraper
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
