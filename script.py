@@ -5,8 +5,7 @@ from facebook_scraper import get_posts
 
 TOKEN = os.getenv('TELEGRAM_TOKEN')
 CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
-# Попробуем использовать числовой ID, если название не идет
-GROUP_ID = "1604555713123880" 
+GROUP_ID = "worknpoland" # Возвращаемся к названию
 COOKIES_JSON = os.getenv('FB_COOKIES')
 
 def send_telegram(text, image=None):
@@ -18,26 +17,22 @@ def send_telegram(text, image=None):
     except: pass
 
 def main():
-    print(f"📡 Попытка прорыва для группы ID: {GROUP_ID}")
+    print(f"📡 Финальная проверка группы: {GROUP_ID}")
     
-    if COOKIES_JSON:
-        with open('cookies.json', 'w') as f:
-            f.write(COOKIES_JSON)
-        c_path = 'cookies.json'
-    else:
-        c_path = None
+    if not COOKIES_JSON:
+        print("❌ КРИТИЧЕСКАЯ ОШИБКА: Секрет FB_COOKIES пуст!")
+        return
+
+    with open('cookies.json', 'w') as f:
+        f.write(COOKIES_JSON)
 
     try:
-        # Используем метод 'mobile' и отключаем лишние запросы, которые палят бота
+        # Пробуем получить посты через m.facebook.com
         posts = get_posts(
             group=GROUP_ID,
             pages=1,
-            cookies=c_path,
-            options={
-                "substream": "posts", 
-                "allow_extra_requests": False,
-                "api_key": None # Отключаем подозрительные заголовки
-            }
+            cookies="cookies.json",
+            options={"allow_extra_requests": True, "vga": True} # vga помогает обходить проверки
         )
         
         new_count = 0
@@ -54,26 +49,23 @@ def main():
             found_any = True
             p_id = post.get('post_id')
             if p_id and p_id not in posted_ids:
-                text = post.get('text') or "Новое объявление в группе"
+                text = post.get('text') or "Новое объявление"
                 link = post.get('post_url') or f"https://facebook.com/{p_id}"
-                
-                print(f"✨ Нашел пост {p_id}, отправляю...")
+                print(f"✨ Пост найден! ID: {p_id}")
                 send_telegram(f"{text}\n\n🔗 {link}", post.get('image'))
                 posted_ids.append(p_id)
                 new_count += 1
                 if new_count >= 5: break
 
         if not found_any:
-            print("❗ Facebook всё еще отдает пустую страницу. Пробуем сменить GROUP_ID на 'worknpoland'...")
-            # Если по ID не вышло, пробуем еще раз по названию внутри того же запуска
-            # (это запасной вариант)
-            
+            print("❗ Facebook всё еще не отдает посты. Это значит, что куки не прошли проверку или IP заблокирован.")
+        
         with open('posted_ids.json', 'w') as f:
             json.dump(posted_ids[-100:], f)
-        print(f"✅ Финиш. Отправлено: {new_count}")
+        print(f"✅ Результат: {new_count}")
 
     except Exception as e:
-        print(f"❌ Ошибка: {e}")
+        print(f"❌ Ошибка библиотеки: {e}")
     finally:
         if os.path.exists('cookies.json'): os.remove('cookies.json')
 
