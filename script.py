@@ -1,76 +1,49 @@
 import os
 import json
 import requests
-import sys
-from types import ModuleType
-
-# Заплатка для blinker
-try:
-    import blinker
-    mock_saferef = ModuleType('blinker._saferef')
-    sys.modules['blinker._saferef'] = mock_saferef
-except: pass
-
-from facebook_page_scraper import Facebook_scraper
+from facebook_scraper import get_posts
 
 TOKEN = os.getenv('TELEGRAM_TOKEN')
 CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
-GROUP_ID = "worknpoland" # ID уже вписан
+GROUP_ID = "worknpoland"
 
-def send_to_telegram(text, image_url=None):
+def send_telegram(text, image=None):
     try:
-        if image_url:
-            url = f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
-            data = {"chat_id": CHAT_ID, "caption": text[:1000], "photo": image_url}
-        else:
-            url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-            data = {"chat_id": CHAT_ID, "text": text}
-        requests.post(url, data=data, timeout=10)
-    except Exception as e:
-        print(f"Ошибка TG: {e}")
+        url = f"https://api.telegram.org/bot{TOKEN}/sendPhoto" if image else f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+        payload = {"chat_id": CHAT_ID, "caption" if image else "text": text[:1024]}
+        if image: payload["photo"] = image
+        requests.post(url, data=payload, timeout=20)
+    except: pass
 
 def main():
-    if os.path.exists('posted_ids.json'):
-        with open('posted_ids.json', 'r') as f:
-            posted_ids = json.load(f)
-    else:
-        posted_ids = []
-
-    print(f"🚀 Запуск скрейпера для {GROUP_ID}...")
-    
-    # В версии 4.0.0 аргумент часто называется page_name
-    scraper = Facebook_scraper(
-        page_name=GROUP_ID,
-        posts_count=5,
-        browser="firefox",
-        proxy=None,
-        timeout=600,
-        headless=True
-    )
-
-    # В версии 4.0.0 метод получения данных называется get_posts()
+    print(f"🚀 Сбор постов из {GROUP_ID}...")
     try:
-        posts_data = scraper.get_posts()
+        # pages=1, собираем свежее
+        posts = get_posts(GROUP_ID, pages=1, options={"substream": "posts"})
+        
+        # Загрузка базы
+        if os.path.exists('posted_ids.json'):
+            with open('posted_ids.json', 'r') as f:
+                posted_ids = json.load(f)
+        else:
+            posted_ids = []
+
+        new_count = 0
+        for post in posts:
+            p_id = post['post_id']
+            if p_id not in posted_ids:
+                msg = f"{post.get('text', '')}\n\n🔗 {post.get('post_url')}"
+                send_telegram(msg, post.get('image'))
+                posted_ids.append(p_id)
+                new_count += 1
+                if new_count >= 5: break
+
+        with open('posted_ids.json', 'w') as f:
+            json.dump(posted_ids[-100:], f)
+        print(f"✅ Успех! Найдено: {new_count}")
+
     except Exception as e:
-        print(f"❌ Ошибка при сборе: {e}")
-        return
-
-    if not posts_data:
-        print("ℹ️ Посты не найдены (возможно, нужна авторизация/cookies)")
-        return
-
-    for post_id, data in posts_data.items():
-        if post_id not in posted_ids:
-            content = data.get('content', '')
-            post_url = data.get('post_url', '')
-            img = data.get('images', [None])[0]
-            
-            send_to_telegram(f"{content}\n\n🔗 {post_url}", img)
-            posted_ids.append(post_id)
-
-    with open('posted_ids.json', 'w') as f:
-        json.dump(posted_ids[-100:], f)
-    print("✅ Готово!")
+        print(f"❌ Ошибка: {e}")
 
 if __name__ == "__main__":
     main()
