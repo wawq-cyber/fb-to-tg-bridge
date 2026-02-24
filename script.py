@@ -2,63 +2,113 @@ import os
 import json
 import requests
 import traceback
-from facebook_page_scraper import Facebook_scraper
+import sys
+from types import ModuleType
 
+# === БЛОК ЗАПЛАТОК (Исправляет ошибку blinker._saferef) ===
+try:
+    import blinker
+    # Создаем фиктивный модуль, если библиотека требует старый путь
+    mock_saferef = ModuleType('blinker._saferef')
+    sys.modules['blinker._saferef'] = mock_saferef
+    print("✅ Заплатка для blinker успешно применена")
+except Exception as e:
+    print(f"⚠️ Не удалось применить заплатку для blinker: {e}")
+
+# Теперь импортируем основной скрейпер
+try:
+    from facebook_page_scraper import Facebook_scraper
+except ImportError as e:
+    print(f"❌ Ошибка импорта скрейпера: {e}")
+    sys.exit(1)
+
+# === НАСТРОЙКИ ===
 TOKEN = os.getenv('TELEGRAM_TOKEN')
 CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
-GROUP_ID = "worknpoland" # ПРОВЕРЬТЕ ЭТОТ ID!
+# ВАЖНО: Замени 'ID_ВАШЕЙ_ГРУППЫ' на реальный ID или название из URL
+GROUP_ID = "worknpoland" 
 
 def send_to_telegram(text, image_url=None):
     try:
         if image_url:
             url = f"https://api.telegram.org/bot{TOKEN}/sendPhoto"
-            data = {"chat_id": CHAT_ID, "caption": text[:1024], "photo": image_url}
+            # caption ограничен 1024 символами в TG
+            payload = {"chat_id": CHAT_ID, "caption": text[:1000], "photo": image_url}
         else:
             url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-            data = {"chat_id": CHAT_ID, "text": text}
-        requests.post(url, data=data, timeout=10)
+            payload = {"chat_id": CHAT_ID, "text": text}
+        
+        response = requests.post(url, data=payload, timeout=10)
+        return response.ok
     except Exception as e:
-        print(f"Ошибка Telegram: {e}")
+        print(f"⚠️ Ошибка при отправке в Telegram: {e}")
+        return False
 
 def main():
     try:
+        # 1. Загружаем базу отправленных ID
         if os.path.exists('posted_ids.json'):
             with open('posted_ids.json', 'r') as f:
-                posted_ids = json.load(f)
+                try:
+                    posted_ids = json.load(f)
+                except:
+                    posted_ids = []
         else:
             posted_ids = []
 
-        print(f"Начинаем поиск постов для группы: {GROUP_ID}")
+        print(f"🚀 Начинаем сбор постов для: {GROUP_ID}...")
+
+        # 2. Инициализация скрейпера
+        # headless=True ОБЯЗАТЕЛЬНО для GitHub Actions
+        scraper = Facebook_scraper(
+            group=GROUP_ID, 
+            posts_count=10, 
+            browser="firefox", 
+            timeout=600, 
+            headless=True
+        )
         
-        # Инициализация с увеличенным таймаутом
-        scraper = Facebook_scraper(GROUP_ID, 10, "firefox", timeout=600, headless=True)
+        # 3. Получение данных
         posts_data = scraper.get_posts()
         
         if not posts_data:
-            print("Посты не найдены. Возможно, группа приватная или сработала защита Facebook.")
+            print("ℹ️ Новых постов не обнаружено или доступ ограничен.")
             return
 
         new_posts_count = 0
+        
+        # 4. Обработка постов
         for post_id, data in posts_data.items():
             if post_id not in posted_ids:
                 content = data.get('content', '')
-                post_url = data.get('post_url', '')
-                img = data.get('images', [None])[0]
+                post_url = data.get('post_url', 'https://facebook.com/' + str(post_id))
+                images = data.get('images', [])
+                img_url = images[0] if images else None
                 
-                message = f"{content}\n\n🔗 {post_url}"
-                send_to_telegram(message, img)
+                message = f"{content}\n\n🔗 Источник: {post_url}"
                 
-                posted_ids.append(post_id)
-                new_posts_count += 1
-                if new_posts_count >= 10: break
+                print(f"📤 Отправляем пост {post_id}...")
+                if send_to_telegram(message, img_url):
+                    posted_ids.append(post_id)
+                    new_posts_count += 1
+                
+                if new_posts_count >= 10:
+                    break
 
+        # 5. Сохранение обновленного списка ID
+        # Храним последние 100 постов, чтобы файл не раздувался
         with open('posted_ids.json', 'w') as f:
             json.dump(posted_ids[-100:], f)
-        print(f"Успешно отправлено новых постов: {new_posts_count}")
+        
+        print(f"✅ Работа завершена. Отправлено новых постов: {new_posts_count}")
 
     except Exception:
-        print("Произошла ошибка при выполнении скрипта:")
-        print(traceback.format_exc()) # Это выведет подробности ошибки в логи
+        print("❌ Произошла критическая ошибка выполнения:")
+        print(traceback.format_exc())
 
 if __name__ == "__main__":
-    main()
+    # Проверка переменных окружения перед запуском
+    if not TOKEN or not CHAT_ID:
+        print("❌ ОШИБКА: Проверьте SECRETS в настройках GitHub (TOKEN или CHAT_ID)")
+    else:
+        main()
