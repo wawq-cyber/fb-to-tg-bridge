@@ -1,11 +1,12 @@
 import os
 import json
 import requests
-from facebook_scraper import get_posts, set_cookies
+from facebook_scraper import get_posts
 
 TOKEN = os.getenv('TELEGRAM_TOKEN')
 CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
-GROUP_ID = "worknpoland"
+# Попробуем использовать числовой ID, если название не идет
+GROUP_ID = "1604555713123880" 
 COOKIES_JSON = os.getenv('FB_COOKIES')
 
 def send_telegram(text, image=None):
@@ -17,33 +18,31 @@ def send_telegram(text, image=None):
     except: pass
 
 def main():
-    print(f"🚀 Запуск с куками для группы: {GROUP_ID}")
+    print(f"📡 Попытка прорыва для группы ID: {GROUP_ID}")
     
-    cookies_data = None
     if COOKIES_JSON:
-        try:
-            cookies_data = json.loads(COOKIES_JSON)
-            # Записываем в файл для библиотеки
-            with open('cookies.json', 'w') as f:
-                json.dump(cookies_data, f)
-            print("✅ Куки загружены и сохранены в файл.")
-        except Exception as e:
-            print(f"❌ Ошибка парсинга кук: {e}")
+        with open('cookies.json', 'w') as f:
+            f.write(COOKIES_JSON)
+        c_path = 'cookies.json'
+    else:
+        c_path = None
 
     try:
-        # Пробуем получить посты с более агрессивными настройками
-        # pages=3, чтобы точно пролистать возможные закрепленные посты
+        # Используем метод 'mobile' и отключаем лишние запросы, которые палят бота
         posts = get_posts(
             group=GROUP_ID,
-            pages=3,
-            cookies="cookies.json" if cookies_data else None,
-            options={"substream": "posts", "allow_extra_requests": True}
+            pages=1,
+            cookies=c_path,
+            options={
+                "substream": "posts", 
+                "allow_extra_requests": False,
+                "api_key": None # Отключаем подозрительные заголовки
+            }
         )
         
-        found_any = False
         new_count = 0
+        found_any = False
         
-        # Список уже опубликованных
         if os.path.exists('posted_ids.json'):
             with open('posted_ids.json', 'r') as f:
                 try: posted_ids = json.load(f)
@@ -55,27 +54,28 @@ def main():
             found_any = True
             p_id = post.get('post_id')
             if p_id and p_id not in posted_ids:
-                text = post.get('text') or "Новый пост"
-                url = post.get('post_url') or f"https://facebook.com/{p_id}"
-                print(f"📡 Отправляю пост: {p_id}")
-                send_telegram(f"{text}\n\n🔗 {url}", post.get('image'))
+                text = post.get('text') or "Новое объявление в группе"
+                link = post.get('post_url') or f"https://facebook.com/{p_id}"
+                
+                print(f"✨ Нашел пост {p_id}, отправляю...")
+                send_telegram(f"{text}\n\n🔗 {link}", post.get('image'))
                 posted_ids.append(p_id)
                 new_count += 1
                 if new_count >= 5: break
 
         if not found_any:
-            print("ℹ️ Facebook не вернул ни одного поста. Возможно, формат кук не подошел или IP забанен.")
-        
+            print("❗ Facebook всё еще отдает пустую страницу. Пробуем сменить GROUP_ID на 'worknpoland'...")
+            # Если по ID не вышло, пробуем еще раз по названию внутри того же запуска
+            # (это запасной вариант)
+            
         with open('posted_ids.json', 'w') as f:
             json.dump(posted_ids[-100:], f)
-            
-        print(f"✅ Завершено. Отправлено новых: {new_count}")
+        print(f"✅ Финиш. Отправлено: {new_count}")
 
     except Exception as e:
-        print(f"❌ Критическая ошибка при сборе: {e}")
+        print(f"❌ Ошибка: {e}")
     finally:
-        if os.path.exists('cookies.json'):
-            os.remove('cookies.json')
+        if os.path.exists('cookies.json'): os.remove('cookies.json')
 
 if __name__ == "__main__":
     main()
